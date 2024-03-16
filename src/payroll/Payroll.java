@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -14,6 +15,10 @@ public class Payroll {
     public static double totalWorkingHoursss;
     public static double monthlyBasicSalary;
     public static double totalmonthlyBasicSalary;
+    public static double latededuct;
+    // connection to "EmployeeDetails.csv" "AttendanceDetails.csv" "SSSContribution.csv"
+    //ask user to input name or emplooyee no.
+    //log out 
  public static void main(String[] args) {
     String employeeCsvFile = "EmployeeDetails.csv";
     String attendanceCsvFile = "AttendanceDetails.csv";
@@ -63,8 +68,9 @@ public class Payroll {
                 System.out.println("******************************************");
                 System.out.println("\nMenu:");
                 System.out.println("1. Employee Information");
-                System.out.println("2. Employee salary information");
-                System.out.println("3. Log out");
+                System.out.println("2. Employee salary information per month");
+                System.out.println("3. Employee salary information per week");
+                System.out.println("4. Log out");
                 System.out.print("Select an option: ");
 
                 
@@ -72,7 +78,7 @@ public class Payroll {
                     int choice = scanner.nextInt();
                     scanner.nextLine(); 
 
-                    if (choice < 1 || choice > 3) {
+                    if (choice < 1 || choice > 4) {
                         System.out.println("Selection not valid. Please select again.");
                         continue;
                     }
@@ -84,14 +90,19 @@ public class Payroll {
                         case 2:
                             viewSalaryInformation(employeeData[0], attendanceCsvFile);
                             break;
+                            
                         case 3:
+                        viewCustom7DaysAttendance(employeeData[0], attendanceCsvFile);
+                            break;    
+                            
+                        case 4:
                             System.out.println("Logging out...");
                             break; 
                         default:
                             System.out.println("Invalid option.");
                     }
 
-                    if (choice == 3) {
+                    if (choice == 4) {
                         break; // Exit the inner loop when logging out
                     }
                 } else {
@@ -216,33 +227,142 @@ private static String[] parseCSVLine(String line) {
         }
 
         attendanceReader2.close();
-
-        System.out.println("\nTotal working hours for the selected month: " + totalWorkingHours + " hours");
+        String formattedTime = convertToHoursAndMinutes(totalWorkingHours);
+        System.out.println("\nTotal working hours for the selected month: " + formattedTime);
         monthlyBasicSalary = employee_hourly_rate * totalWorkingHoursss;
         //need this to edit 
         //System.out.println(monthlyBasicSalary);
         printSalaryInformation(employee_hourly_rate );
         
     }
+ 
+ private static double viewCustom7DaysAttendance(String employeeNumber, String attendanceCsvFile) throws IOException {
+    BufferedReader attendanceReader = new BufferedReader(new FileReader(attendanceCsvFile));
 
- private static double calculateWorkingHours(String timeIn, String timeOut) {
+    attendanceReader.readLine(); // Skip header row
+
+    Scanner scanner = new Scanner(System.in);
+    LocalDate startDate = null;
+    boolean validDate = false;
+
+    while (!validDate) {
+        try {
+            System.out.println("Enter start date (MM/dd/yyyy): ");
+            String startDateString = scanner.nextLine().trim();
+            // Check if slashes are missing and add them
+            if (!startDateString.contains("/") && !startDateString.contains("-")) {
+                if (startDateString.length() == 8) {
+                    startDateString = startDateString.substring(0, 2) + "/" + startDateString.substring(2, 4) + "/" + startDateString.substring(4);
+                } else {
+                    throw new DateTimeParseException("Invalid date format", startDateString, 0);
+                }
+            }
+            startDate = LocalDate.parse(startDateString, DateTimeFormatter.ofPattern("MM/dd/yyyy"));
+            validDate = true;
+        } catch (DateTimeParseException e) {
+            System.out.println("Incorrect date format. Please enter the date in MM/dd/yyyy format.");
+        }
+    }
+
+    // Calculate end date which is 7 days after the start date
+    LocalDate endDate = startDate.plusDays(6); // 6 days to account for the first day
+
+    System.out.println("\nAttendance for Employee Number " + employeeNumber + " from " + startDate + " to " + endDate + ":");
+
+    String line;
+    double totalWorkingHours = 0;
+    while ((line = attendanceReader.readLine()) != null) {
+        String[] attendanceData = line.split(",");
+        LocalDate date = LocalDate.parse(attendanceData[1], DateTimeFormatter.ofPattern("MM/dd/yyyy"));
+        if (attendanceData[0].equals(employeeNumber) && !date.isBefore(startDate) && !date.isAfter(endDate)) {
+            System.out.println("Date: " + attendanceData[1] + ", Time: " + attendanceData[2] + " - " + attendanceData[3]);
+            totalWorkingHours += calculateWorkingHours(attendanceData[2], attendanceData[3]);
+            totalWorkingHoursss = Math.round((totalWorkingHours)* 10.0)/10.0;
+            
+            
+            
+        }
+    }
+
+    attendanceReader.close();
+    String formattedTime = convertToHoursAndMinutes(totalWorkingHours);
+    System.out.println("\nTotal working hours for the selected 7 days: " + formattedTime );
+    monthlyBasicSalary = employee_hourly_rate * totalWorkingHoursss;
+    printSalaryInformation(employee_hourly_rate );
+    return totalWorkingHours;
+}
+private static double calculateWorkingHours(String timeIn, String timeOut) {
     if (timeIn.equals("0:00") && timeOut.equals("0:00")) {
         return 0.0;
     }
+    
     String[] timeInParts = timeIn.split(":");
     String[] timeOutParts = timeOut.split(":");
     int hoursIn = Integer.parseInt(timeInParts[0]);
     int minutesIn = Integer.parseInt(timeInParts[1]);
     int hoursOut = Integer.parseInt(timeOutParts[0]);
     int minutesOut = Integer.parseInt(timeOutParts[1]);
-    int totalMinutes = (hoursOut * 60 + minutesOut) - (hoursIn * 60 + minutesIn) - 60 ;  
+    int totalMinutes = (hoursOut * 60 + minutesOut) - (hoursIn * 60 + minutesIn);  
+
+    int minutesLate = calculateMinutesLate(timeIn);
+    if ((hoursIn > 8) || (hoursIn == 8 && minutesIn >= 11)) {
+        latededuct = minutesLate;
+        System.out.println("Late for " + minutesLate + " minutes");
+    } else if ((hoursIn < 8) || (hoursIn == 8 && minutesIn <= 10)) {
+        totalMinutes += minutesLate; // Add late minutes to total working hours
+        latededuct = minutesLate;
+        if (!(hoursIn == 8 && minutesIn == 0)) { // Check if time in is exactly 8:00
+            System.out.println("Late for " + latededuct + " minutes");
+        }
+    }
+    
     return totalMinutes / 60.0;
 }
-  private static boolean isWithinMonth(LocalDate date, LocalDate month) {
+
+private static int calculateMinutesLate(String timeIn) {
+    if (timeIn.equals("0:00")) {
+        return 0;
+    }
+    
+    String[] timeInParts = timeIn.split(":");
+    int hoursIn = Integer.parseInt(timeInParts[0]);
+    int minutesIn = Integer.parseInt(timeInParts[1]);
+
+    // Calculate the number of minutes late if time in is after 8:00
+    int expectedHours = 8; // Expected arrival hour (8:00)
+    int expectedMinutes = 0; // Expected arrival minute (8:00)
+    int expectedTotalMinutes = expectedHours * 60 + expectedMinutes;
+    int actualTotalMinutes = hoursIn * 60 + minutesIn;
+    int minutesLate = Math.max(actualTotalMinutes - expectedTotalMinutes, 0); // Prevent negative values
+
+    return minutesLate;
+}
+
+
+
+ 
+ 
+    private static String convertToHoursAndMinutes(double totalHours) {
+    // Extract the integer part as hours
+    int hours = (int) totalHours;
+
+    // Calculate remaining minutes
+    double decimalPart = totalHours - hours;
+    int minutes = (int) (decimalPart * 60)  ;
+
+    // Format the result
+    return hours + " hours and " + minutes + " minutes";
+    
+    
+}
+ 
+ 
+    private static boolean isWithinMonth(LocalDate date, LocalDate month) {
         return date.getMonth() == month.getMonth() && date.getYear() == month.getYear();
     }
+    
 
-   public static double calculatePagIbigContribution(double monthlyBasicSalary) {
+    public static double calculatePagIbigContribution(double monthlyBasicSalary) {
         double contributionRate;
         double maxContribution = 100; // Maximum contribution set to 100
         // Determine contribution rate based on monthly basic salary
@@ -262,7 +382,7 @@ private static String[] parseCSVLine(String line) {
         return contributionAmount;
     }
    
-     public static double calculatePhilhealthContribution(double monthlyBasicSalary) {
+    public static double calculatePhilhealthContribution(double monthlyBasicSalary) {
         double contributionRate;
         double maxContribution = 1800; 
         // Determine contribution rate based on monthly basic salary
@@ -283,7 +403,7 @@ private static String[] parseCSVLine(String line) {
         }
         return totalcontributionAmount;
     }
-     public static double calculateSSSContribution(double monthlyBasicSalary, String SSSContributioncsvFile) {
+    public static double calculateSSSContribution(double monthlyBasicSalary, String SSSContributioncsvFile) {
     try (BufferedReader br = new BufferedReader(new FileReader(SSSContributioncsvFile))) {
         String line;
         br.readLine(); // Skip the header line
@@ -308,9 +428,16 @@ private static String[] parseCSVLine(String line) {
     // If no matching range is found and salary is not over 25000, return 0 as default contribution
     return 0;
 }
-      private static double parseDoubleWithComma(String s) {
+     //for replacing coma to space
+    private static double parseDoubleWithComma(String s) {
         return Double.parseDouble(s.replace(",", ""));
     }
+      //if total monthlybasic salary is equal to 20832 withholdingtax is 0
+      // if total monthlybasic salary is equal to 20832 to 33333 withholdingtax is 20% times total monthly basic salary - 20833
+      // if total monthlybasic salary is equal to 33333 to 66667 withholdingtax is 2500 plus 25% times total monthly basic salary - 33333
+      // if total monthlybasic salary is equal to 66667 to 166667 withholdingtax is 10833 plus 30% times total monthly basic salary - 66667
+      // if total monthlybasic salary is equal to 166667 to 666667 withholdingtax is 40833.33 plus 32% times total monthly basic salary - 166667
+      // if total monthlybasic salary is equal higher than 666667 withholdingtax is 200833.33 plus 35% times total monthly basic salary - 666667
     public static double calculateWitholdingTax(double taxrate) {
          if (totalmonthlyBasicSalary < 20832) {
         return 0;
@@ -326,7 +453,8 @@ private static String[] parseCSVLine(String line) {
         return 200833.33 + 0.35 * (totalmonthlyBasicSalary - 666667);
     }
     }
-private static void printSalaryInformation(double employee_hourly_rate) {
+    // printing and computing salary information 
+    private static void printSalaryInformation(double employee_hourly_rate) {
     System.out.println("******************************************");
     double philhealthContribution = calculatePhilhealthContribution(monthlyBasicSalary);
     double pagIbigContribution = calculatePagIbigContribution(monthlyBasicSalary);
@@ -343,7 +471,6 @@ private static void printSalaryInformation(double employee_hourly_rate) {
     System.out.println("TAXABLE INCOME (Salary - Total Deductions): " + totalmonthlyBasicSalary);
     System.out.println("Tax Rate: " + taxRate);
     System.out.println("Net Pay: " + totalPay);
-    //System.out.println("Hourly Rate: " + employee_hourly_rate);
     
     
     
