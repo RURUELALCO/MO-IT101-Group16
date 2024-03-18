@@ -158,6 +158,7 @@ private static String[] parseCSVLine(String line) {
 
 
  private static void viewSalaryInformation(String employeeNumber, String attendanceCsvFile) throws IOException {
+     totalLateMinutes = 0;
         BufferedReader attendanceReader = new BufferedReader(new FileReader(attendanceCsvFile));
         attendanceReader.readLine(); // Skip header row
         List<LocalDate> startMonths = new ArrayList<>();
@@ -241,6 +242,7 @@ private static String[] parseCSVLine(String line) {
     }
  
  private static double viewCustom7DaysAttendance(String employeeNumber, String attendanceCsvFile) throws IOException {
+     totalLateMinutes = 0;
     BufferedReader attendanceReader = new BufferedReader(new FileReader(attendanceCsvFile));
 
     attendanceReader.readLine(); // Skip header row
@@ -296,7 +298,7 @@ private static String[] parseCSVLine(String line) {
     printSalaryInformation(employee_hourly_rate );
     return totalWorkingHours;
 }
- private static boolean lateDeductionApplied = false;
+ 
  
 private static double calculateWorkingHours(String timeIn, String timeOut) {
     if (timeIn.equals("0:00") && timeOut.equals("0:00")) {
