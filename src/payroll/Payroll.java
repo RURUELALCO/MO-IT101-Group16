@@ -479,13 +479,28 @@ private static String convertMinutesToHours(int minutes) {
         return 200833.33 + 0.35 * (totalmonthlyBasicSalary - 666667);
     }
     }
+    
+    
+    
+    
     // printing and computing salary information 
     private static void printSalaryInformation(double employee_hourly_rate) {
     System.out.println("******************************************");
     double philhealthContribution = calculatePhilhealthContribution(monthlyBasicSalary);
     double pagIbigContribution = calculatePagIbigContribution(monthlyBasicSalary);
     double SSSContribution = calculateSSSContribution(monthlyBasicSalary, "SSSContribution.csv");
-    latededuct = (employee_hourly_rate / 60.0)*totalLateMinutes ;
+    
+    latededuct = 0;
+     if (totalLateMinutes <= 10) {
+        
+    } else {
+        latededuct = totalLateMinutes * (employee_hourly_rate / 60.0);
+    }
+    //latededuct = (employee_hourly_rate / 60.0)*totalLateMinutes ;
+  
+    
+    
+    
     double totaldeduction = philhealthContribution + pagIbigContribution + SSSContribution + latededuct;
     totalmonthlyBasicSalary = monthlyBasicSalary - totaldeduction;
     double taxRate = Math.round((calculateWitholdingTax(totalmonthlyBasicSalary))* 100.00)/100.00;
