@@ -15,6 +15,7 @@ public class Payroll {
     public static double totalWorkingHoursss;
     public static double monthlyBasicSalary;
     public static double totalmonthlyBasicSalary;
+    public static double totalLateMinutes;
     public static double latededuct;
     // connection to "EmployeeDetails.csv" "AttendanceDetails.csv" "SSSContribution.csv"
     //ask user to input name or emplooyee no.
@@ -223,12 +224,15 @@ private static String[] parseCSVLine(String line) {
                 System.out.println("Date: " + attendanceData[1] + ", Time: " + attendanceData[2] + " - " + attendanceData[3]);
                 totalWorkingHours += calculateWorkingHours(attendanceData[2], attendanceData[3]);
                 totalWorkingHoursss = totalWorkingHours;
+                totalLateMinutes += calculateMinutesLate(attendanceData[2]);
+                
             }
         }
 
         attendanceReader2.close();
         String formattedTime = convertToHoursAndMinutes(totalWorkingHours);
         System.out.println("\nTotal working hours for the selected month: " + formattedTime);
+        System.out.println("Total late for the selected months: " + totalLateMinutes + " minutes"); 
         monthlyBasicSalary = employee_hourly_rate * totalWorkingHoursss;
         //need this to edit 
         //System.out.println(monthlyBasicSalary);
@@ -278,7 +282,7 @@ private static String[] parseCSVLine(String line) {
             System.out.println("Date: " + attendanceData[1] + ", Time: " + attendanceData[2] + " - " + attendanceData[3]);
             totalWorkingHours += calculateWorkingHours(attendanceData[2], attendanceData[3]);
             totalWorkingHoursss = Math.round((totalWorkingHours)* 10.0)/10.0;
-            
+             totalLateMinutes += calculateMinutesLate(attendanceData[2]);
             
             
         }
@@ -287,10 +291,13 @@ private static String[] parseCSVLine(String line) {
     attendanceReader.close();
     String formattedTime = convertToHoursAndMinutes(totalWorkingHours);
     System.out.println("\nTotal working hours for the selected 7 days: " + formattedTime );
+    System.out.println("Total late for the selected week: " +  totalLateMinutes + " minutes"); 
     monthlyBasicSalary = employee_hourly_rate * totalWorkingHoursss;
     printSalaryInformation(employee_hourly_rate );
     return totalWorkingHours;
 }
+ private static boolean lateDeductionApplied = false;
+ 
 private static double calculateWorkingHours(String timeIn, String timeOut) {
     if (timeIn.equals("0:00") && timeOut.equals("0:00")) {
         return 0.0;
@@ -307,17 +314,18 @@ private static double calculateWorkingHours(String timeIn, String timeOut) {
     int minutesLate = calculateMinutesLate(timeIn);
     if ((hoursIn > 8) || (hoursIn == 8 && minutesIn >= 11)) {
         latededuct = minutesLate;
-        System.out.println("Late for " + minutesLate + " minutes");
+        System.out.println("Late for " + convertMinutesToHours(minutesLate));
     } else if ((hoursIn < 8) || (hoursIn == 8 && minutesIn <= 10)) {
         totalMinutes += minutesLate; // Add late minutes to total working hours
         latededuct = minutesLate;
         if (!(hoursIn == 8 && minutesIn == 0)) { // Check if time in is exactly 8:00
-            System.out.println("Late for " + latededuct + " minutes");
+            System.out.println("Late for " + convertMinutesToHours(minutesLate));
         }
     }
     
     return totalMinutes / 60.0;
 }
+
 
 private static int calculateMinutesLate(String timeIn) {
     if (timeIn.equals("0:00")) {
@@ -338,6 +346,22 @@ private static int calculateMinutesLate(String timeIn) {
     return minutesLate;
 }
 
+private static String convertMinutesToHours(int minutes) {
+    if (minutes < 0) {
+        return "Invalid input";
+    }
+
+    int hours = minutes / 60;
+    int remainingMinutes = minutes % 60;
+
+    if (hours > 0 && remainingMinutes > 0) {
+        return hours + " hours and " + remainingMinutes + " minutes";
+    } else if (hours > 0) {
+        return hours + " hours";
+    } else {
+        return minutes + " minutes";
+    }
+}
 
 
  
@@ -459,14 +483,17 @@ private static int calculateMinutesLate(String timeIn) {
     double philhealthContribution = calculatePhilhealthContribution(monthlyBasicSalary);
     double pagIbigContribution = calculatePagIbigContribution(monthlyBasicSalary);
     double SSSContribution = calculateSSSContribution(monthlyBasicSalary, "SSSContribution.csv");
-    double totaldeduction = philhealthContribution + pagIbigContribution + SSSContribution;
+    latededuct = (employee_hourly_rate / 60.0)*totalLateMinutes ;
+    double totaldeduction = philhealthContribution + pagIbigContribution + SSSContribution + latededuct;
     totalmonthlyBasicSalary = monthlyBasicSalary - totaldeduction;
     double taxRate = Math.round((calculateWitholdingTax(totalmonthlyBasicSalary))* 100.00)/100.00;
     double totalPay = Math.round((totalmonthlyBasicSalary - taxRate)* 100.00)/100.00 ;
+    
     System.out.println("Total monthly base salary: " + monthlyBasicSalary);
     System.out.println("PhilHealth deductions: " + philhealthContribution );
     System.out.println("Pag-ibig contributions: " + pagIbigContribution);
     System.out.println("SSS contributions: " + SSSContribution);
+    System.out.println("Total late deduction: " + latededuct);
     System.out.println("Total deductions: " + totaldeduction);
     System.out.println("TAXABLE INCOME (Salary - Total Deductions): " + totalmonthlyBasicSalary);
     System.out.println("Tax Rate: " + taxRate);
