@@ -496,11 +496,8 @@ private static String convertMinutesToHours(int minutes) {
     } else {
         latededuct = totalLateMinutes * (employee_hourly_rate / 60.0);
     }
-    //latededuct = (employee_hourly_rate / 60.0)*totalLateMinutes ;
-  
     
-    
-    
+
     double totaldeduction = philhealthContribution + pagIbigContribution + SSSContribution + latededuct;
     totalmonthlyBasicSalary = monthlyBasicSalary - totaldeduction;
     double taxRate = Math.round((calculateWitholdingTax(totalmonthlyBasicSalary))* 100.00)/100.00;
